@@ -10,11 +10,11 @@ import Foundation
 import Moya
 
 let apiURL = "http://api-aws-eu-qa-1.auto1-test.com/"
-let apiKey = "coding-puzzle-client-449cc9d."
+let apiKey = "coding-puzzle-client-449cc9d"
 
 enum AutoAPI {
     case getManufacturer(page: Int, pageSize: Int)
-    case getType(manufacturerId: Int)
+    case getType(manufacturerId: String, page: Int, pageSize: Int)
 }
 
 extension AutoAPI: TargetType {
@@ -28,9 +28,10 @@ extension AutoAPI: TargetType {
     var path: String {
         switch self {
         case .getManufacturer(_,_):
-            return "v1/cart-types/manufacturer"
+            return "v1/car-types/manufacturer"
+            
         case .getType:
-            return "v1/cart-types/main-types"
+            return "v1/car-types/main-types"
         }
     }
     
@@ -43,8 +44,14 @@ extension AutoAPI: TargetType {
     
     var sampleData: Data {
         switch self {
-        case .getManufacturer(_,_), .getType:
-            guard let url = Bundle.main.url(forResource: "taxiList", withExtension: "json"),
+        case .getManufacturer(_,_):
+            guard let url = Bundle.main.url(forResource: "manufacturerJson", withExtension: "json"),
+                let data = try? Data(contentsOf: url) else {
+                    return Data()
+            }
+            return data
+        default:
+            guard let url = Bundle.main.url(forResource: "carJson", withExtension: "json"),
                 let data = try? Data(contentsOf: url) else {
                     return Data()
             }
@@ -60,11 +67,11 @@ extension AutoAPI: TargetType {
             params ["pageSize"] = pageSize
             params ["wa_key"] = apiKey
             return .requestParameters(parameters: params, encoding: URLEncoding.queryString)
-        case .getType(let manufacturerId):
+        case .getType(let manufacturerId, let page , let pageSize):
             var params: [String: Any] = [:]
-            params["manufacture"] = manufacturerId
-            params ["page"] = 0
-            params ["pageSize"] = 10
+            params ["manufacturer"] = manufacturerId
+            params ["page"] = page
+            params ["pageSize"] = pageSize
             params ["wa_key"] = apiKey
             return .requestParameters(parameters: params, encoding: URLEncoding.queryString)
         }

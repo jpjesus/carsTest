@@ -7,14 +7,22 @@
 //
 
 import Foundation
+import RxDataSources
 
 protocol CarProtocol: class {
     var page: Int { get set}
     var pageSize: Int {get set}
-    var type: [AutoDescriptionProtocol] {get set}
 }
 
-protocol AutoDescriptionProtocol: class {
+protocol AutoDescriptionProtocol: IdentifiableType, Equatable {
+    associatedtype Identity
     var id: String { get set}
     var name: String { get set }
+    var identity : Identity { get }
+}
+
+extension AutoDescriptionProtocol where Self: Car {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        return lhs.id == rhs.id
+    }
 }

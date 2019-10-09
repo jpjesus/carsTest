@@ -8,9 +8,13 @@
 
 import UIKit
 
-class ManufacturerCarCellView: UICollectionViewCell {
+class ManufacturerCarCellView: UITableViewCell {
     
     @IBOutlet private weak var titleLabel: UILabel!
-    @IBOutlet private weak var containerView: UIView!
+    
+    func buildCell(for brand: Brand) {
+        titleLabel.text = brand.name
+        
+    }
     
 }

@@ -7,12 +7,13 @@
 //
 
 import Foundation
+import RxDataSources
 
-struct Manufacturer: Decodable {
-    
+class Manufacturer: CarProtocol, Decodable {
+
     var page: Int = 0
     var pageSize: Int = 0
-    var brands: [Brand] = []
+    var type: [Brand] = []
     
     enum CodingKeys: String, CodingKey {
         case page
@@ -20,27 +21,36 @@ struct Manufacturer: Decodable {
         case brands = "wkda"
     }
     
-    init(from decoder: Decoder) throws {
+    required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         page = try container.decodeIfPresent(Int.self, forKey: .page) ?? 0
         pageSize = try container.decodeIfPresent(Int.self, forKey: .pageSize) ?? 0
-        brands = try container.decodeIfPresent([Brand].self, forKey: .brands) ?? []
+        let subContainer = try container.nestedContainer(keyedBy: DynamicKey.self, forKey: .brands)
+        for key in subContainer.allKeys {
+            let brand = Brand(id: key.stringValue, brandName: try subContainer.decode(String.self, forKey: key))
+            type.append(brand)
+        }
     }
+    
+    init() {}
 }
 
-struct Brand: Decodable {
+class Brand: AutoDescriptionProtocol, IdentifiableType, Equatable {
     
-    var id: String = ""
-    var brandName: String =  ""
+    var id: String
+    var name: String
+    typealias Identity = String
     
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: DynamicKey.self)
-        try container.allKeys.forEach({ key in
-            switch key.stringValue {
-            default:
-                brandName = try container.decode(String.self, forKey: key)
-                id = key.stringValue
-            }
-        })
+    init(id: String, brandName: String) {
+        self.id = id
+        self.name = brandName
+    }
+    
+    var identity: Identity {
+        return name
+    }
+    
+    static func == (lhs: Brand, rhs: Brand) -> Bool {
+        return lhs.id == rhs.id
     }
 }

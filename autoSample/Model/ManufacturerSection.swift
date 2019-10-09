@@ -11,12 +11,18 @@ import RxDataSources
 
 struct ManufacturerSection {
     var header: String
-    var items: [Brand]
+    var items: [Item]
 }
+extension ManufacturerSection: AnimatableSectionModelType {
 
-extension ManufacturerSection: SectionModelType {
-
-    init(original: ManufacturerSection, items: [Brand]) {
+    typealias Item = Brand
+    typealias Identity = String
+    
+    var identity: Identity {
+        return header
+    }
+    
+    init(original: ManufacturerSection, items: [Item]) {
         self = original
         self.items = items
     }

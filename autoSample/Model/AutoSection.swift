@@ -7,3 +7,22 @@
 //
 
 import Foundation
+import RxDataSources
+
+struct CarSection {
+    var header: String
+    var items: [Car]
+}
+
+extension CarSection: AnimatableSectionModelType {
+    typealias Identity = String
+    
+    var identity: Identity {
+        return header
+    }
+    
+    init(original: CarSection, items: [Car]) {
+        self = original
+        self.items = items
+    }
+}

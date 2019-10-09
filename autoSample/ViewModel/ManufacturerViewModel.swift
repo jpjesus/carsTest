@@ -12,9 +12,10 @@ import RxSwift
 import RxDataSources
 
 typealias ManufacturerListIntput = (
-    collectionView: Reactive<UICollectionView>,
+    tableView: Reactive<UITableView>,
+    spinner: UIActivityIndicatorView,
     navigation: UINavigationController?,
-    spinner: UIActivityIndicatorView
+    loadPage: Observable<Int>
 )
 
 typealias ManufacturerListOutput = (
@@ -25,6 +26,8 @@ typealias ManufacturerListOutput = (
 class ManufacturerViewModel {
     
     private let provider: MoyaProvider<AutoAPI>
+    private var pageNumber: Int = 0
+    var manufacturer: Manufacturer = Manufacturer()
     
     
     init(with provider: MoyaProvider<AutoAPI>) {
@@ -33,47 +36,65 @@ class ManufacturerViewModel {
     
     func setup(input: ManufacturerListIntput) -> ManufacturerListOutput {
         
-        let brands = provider.rx.request(.getManufacturer(page: 0, pageSize: 10))
-            .do(onSuccess: {  _ in
-                input.spinner.stopAnimating()
-            }, onError: { [weak self] _ in
-                input.spinner.stopAnimating()
-            })
-            .asObservable()
-            .map(Manufacturer.self)
-            .retry(1)
-        
+        let brands =  input.loadPage.flatMap { [weak self] page -> Observable<Manufacturer> in
+            guard let self = self else { return Observable.just(Manufacturer()) }
+            return self.getManufacturerType(with: page, indicator: input.spinner, navigation: input.navigation)
+        }
+    
         let dataSource = createDataSource()
         
         let section = brands.asObservable()
             .map(setBrandsForCell)
-            .bind(to: input.collectionView.items(dataSource: dataSource))
+            .bind(to: input.tableView.items(dataSource: dataSource))
         
-        let selectCell = input.collectionView.modelSelected(Brand.self)
+        let selectCell = input.tableView.modelSelected(Brand.self)
             .asObservable()
         
+
         return(section: section,
                  selectCell: selectCell)
     }
     
+    func showAutoModel(with navigation: UINavigationController?, brand: Brand) {
+        let viewModel = CarListViewModel(with: provider, brand: brand)
+        let vc = AutoListViewController(with: viewModel)
+        navigation?.pushFadeAnimation(viewController: vc)
+    }
 }
 
 extension ManufacturerViewModel {
     
-    private func createDataSource() -> RxCollectionViewSectionedReloadDataSource<ManufacturerSection> {
-        let dataSource = RxCollectionViewSectionedReloadDataSource<ManufacturerSection>(configureCell:{ (dataSource: CollectionViewSectionedDataSource<ManufacturerSection>, collectionView: UICollectionView, indexPath: IndexPath, item: Brand) in
-            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: String(describing: ManufacturerCarCellView.self), for: indexPath) as? ManufacturerCarCellView else {
-                return UICollectionViewCell()
+    private func createDataSource() -> RxTableViewSectionedAnimatedDataSource<ManufacturerSection> {
+        let dataSource =
+            RxTableViewSectionedAnimatedDataSource<ManufacturerSection>(configureCell:{ (dataSource: TableViewSectionedDataSource<ManufacturerSection>, tableView: UITableView, indexPath: IndexPath, item: Brand) in
+            guard let cell = tableView.dequeueReusableCell(withIdentifier: String(describing: ManufacturerCarCellView.self), for: indexPath) as? ManufacturerCarCellView else {
+                return UITableViewCell()
             }
-            //cell.buildCell(for: item)
+            cell.buildCell(for: item)
+            cell.backgroundColor = .random
             return cell
         })
+        dataSource.animationConfiguration = AnimationConfiguration(insertAnimation: .fade, reloadAnimation: .fade, deleteAnimation: .bottom)
         return dataSource
     }
     
     private func setBrandsForCell(manufacturer: Manufacturer) -> [ManufacturerSection] {
         var results: [ManufacturerSection] = []
-        results.append(ManufacturerSection (header: "", items: manufacturer.brands))
+        self.manufacturer.type += manufacturer.type
+        results.append(ManufacturerSection(header: "", items: self.manufacturer.type.sorted { $0.id < $1.id }))
         return results
+    }
+    
+    private func getManufacturerType(with pageNumber: Int, indicator: UIActivityIndicatorView, navigation: UINavigationController?) -> Observable<Manufacturer> {
+        return provider.rx.request(.getManufacturer(page: pageNumber, pageSize: 15))
+            .do(onSuccess: {  _ in
+                indicator.stopAnimating()
+            }, onError: {  _ in
+                indicator.stopAnimating()
+                UINavigationController.showOfflineAlert(with: navigation)
+            })
+            .asObservable()
+            .map(Manufacturer.self)
+            .retry(2)
     }
 }

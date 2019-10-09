@@ -14,6 +14,7 @@ import RxDataSources
 typealias AutoListIntput = (
     tableView: Reactive<UITableView>,
     spinner: UIActivityIndicatorView,
+    navigation: UINavigationController?,
     loadPage: Observable<Int>
 )
 
@@ -37,7 +38,7 @@ class CarListViewModel {
             
             let brands =  input.loadPage.flatMap { [weak self] page -> Observable<CarType> in
                 guard let self = self else { return Observable.just(CarType()) }
-                return self.getAutoList(with: page, brandID: self.brand.id , indicator: input.spinner)
+                return self.getAutoList(with: page, brandID: self.brand.id , indicator: input.spinner, navigation: input.navigation)
             }
             
             let dataSource = createDataSource()
@@ -45,6 +46,8 @@ class CarListViewModel {
             let section = brands.asObservable()
                 .map(setAutoForCell)
                 .bind(to: input.tableView.items(dataSource: dataSource))
+        
+           input.tableView.isHidden.onNext(false)
             
             let selectCell = input.tableView.modelSelected(Car.self)
                 .asObservable()
@@ -53,39 +56,45 @@ class CarListViewModel {
             return(section: section,
                    selectCell: selectCell)
         }
+    
+    func showCarInfo(with car: Car, navigation: UINavigationController?) {
+        UINavigationController.showCartInfo(with: navigation, brandName: brand.name, carModel: car.name)
+    }
 }
 
 extension CarListViewModel {
     
-    private func createDataSource() -> RxTableViewSectionedReloadDataSource<AutoSection> {
+    private func createDataSource() -> RxTableViewSectionedAnimatedDataSource<CarSection> {
         let dataSource =
-            RxTableViewSectionedReloadDataSource<AutoSection>(configureCell:{ (dataSource: TableViewSectionedDataSource<AutoSection>, tableView: UITableView, indexPath: IndexPath, item: AutoDescriptionProtocol) in
-                guard let cell = tableView.dequeueReusableCell(withIdentifier: String(describing: ManufacturerCarCellView.self), for: indexPath) as? ManufacturerCarCellView else {
+            RxTableViewSectionedAnimatedDataSource<CarSection>(configureCell:{ (dataSource: TableViewSectionedDataSource<CarSection>, tableView: UITableView, indexPath: IndexPath, item: Car) in
+                guard let cell = tableView.dequeueReusableCell(withIdentifier: String(describing: CarCellView.self), for: indexPath) as? CarCellView else {
                     return UITableViewCell()
                 }
                 cell.buildCell(for: item)
                 cell.backgroundColor = .random
                 return cell
             })
+         dataSource.animationConfiguration = AnimationConfiguration(insertAnimation: .fade, reloadAnimation: .fade, deleteAnimation: .bottom)
         return dataSource
     }
     
-    private func getAutoList(with pageNumber: Int, brandID: String, indicator: UIActivityIndicatorView) -> Observable<CarType> {
+    private func getAutoList(with pageNumber: Int, brandID: String, indicator: UIActivityIndicatorView, navigation: UINavigationController?) -> Observable<CarType> {
         return provider.rx.request(.getType(manufacturerId: brandID, page: pageNumber, pageSize: 15))
             .do(onSuccess: {  _ in
                 indicator.stopAnimating()
-            }, onError: { [weak self] _ in
+            }, onError: { _ in
                 indicator.stopAnimating()
+                UINavigationController.showOfflineAlert(with: navigation)
             })
             .asObservable()
             .map(CarType.self)
             .retry(2)
     }
     
-    private func setAutoForCell(autoType: CarType) -> [AutoSection] {
-        var results: [AutoSection] = []
+    private func setAutoForCell(autoType: CarType) -> [CarSection] {
+        var results: [CarSection] = []
         self.cars.type += autoType.type
-        results.append(AutoSection (header: "", items: self.cars.type))
+        results.append(CarSection (header: "", items: self.cars.type.sorted { $0.id < $1.id }))
         return results
     }
 }

@@ -1,5 +1,5 @@
 //
-//  CartCellView.swift
+//  CarCellView.swift
 //  autoSample
 //
 //  Created by Jesus Parada on 10/8/19.
@@ -8,12 +8,12 @@
 
 import UIKit
 
-class CartCellView: UITableViewCell {
+class CarCellView: UITableViewCell {
     
     @IBOutlet private weak var titleLabel: UILabel!
     
-    func buildCell(for brand: Brand) {
-        titleLabel.text = brand.name
+    func buildCell(for car: Car) {
+        titleLabel.text = car.name
         
     }
     
